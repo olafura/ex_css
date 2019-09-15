@@ -330,7 +330,7 @@ defmodule ExCss do
     |> tag(:declaration_list)
   )
 
-  defparsec(
+  defcombinatorp(
     :component_value,
     choice([
       comment,
@@ -362,6 +362,11 @@ defmodule ExCss do
   defparsec(
     :parse_stylesheet,
     stylesheet
+  )
+
+  defparsec(
+    :parse_component_value,
+    parsec(:component_value)
   )
 
   def parse_css(css) do

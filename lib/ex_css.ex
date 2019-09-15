@@ -7,32 +7,34 @@ defmodule ExCss do
 
   comment =
     ignore(string("/*"))
-    |> repeat_until(utf8_char([]), [string("*/")])
+    |> repeat(
+      lookahead_not(string("*/"))
+      |> utf8_char([])
+    )
     |> ignore(string("*/"))
     |> reduce({Kernel, :to_string, []})
     |> tag(:comment)
 
-  newline_single =
-    ascii_string([?\n, ?\r, ?\f], 1)
+  newline_single = ascii_string([?\n, ?\r, ?\f], 1)
 
-  newline_double =
-    string("\r\n")
+  newline_double = string("\r\n")
 
-  newline =
-    choice([newline_double, newline_single])
+  newline = choice([newline_double, newline_single])
 
-  whitespace =
-    choice([string(" "), string("\t"), newline])
+  whitespace = choice([string(" "), string("\t"), newline])
 
   hex_digit = [0..9, ?a..?f, ?A..?F]
 
   escape =
     string("\\")
     |> ascii_string(hex_digit, min: 1, max: 6)
+    |> tag(:escape)
+
+  non_ascii_token = utf8_char(not: 0..127)
 
   token =
-    ascii_char([?a..?z, ?A..?Z, ?_])
-    |> optional(repeat(ascii_char([?a..?z, ?A..?Z, ?_, ?-])))
+    choice([ascii_char([?a..?z, ?A..?Z, ?_]), non_ascii_token])
+    |> optional(repeat(choice([ascii_char([?a..?z, ?A..?Z, ?_, ?-]), non_ascii_token])))
     |> reduce({Kernel, :to_string, []})
     |> tag(:token)
 
@@ -46,32 +48,36 @@ defmodule ExCss do
     |> concat(string("."))
     |> concat(integer(min: 1))
 
-  unicode_up_to_six_hex =
-    ascii_string(hex_digit, min: 1, max: 6)
+  unicode_up_to_six_hex = ascii_string(hex_digit, min: 1, max: 6)
 
   url_unquoted =
-    repeat_until(choice([utf8_char([]), escape]), [ascii_char([?", ?', ?(, ?), ?\\, ?\s, ?\t, ?\n, ?\r, ?\f])])
+    repeat(
+      lookahead_not(ascii_char([?", ?', ?(, ?), ?\\, ?\s, ?\t, ?\n, ?\r, ?\f]))
+      |> choice([utf8_char([]), escape])
+    )
     |> reduce({Kernel, :to_string, []})
     |> tag(:url_unquoted)
 
-  whitespace_token =
-    times(whitespace, min: 1)
+  whitespace_token = times(whitespace, min: 1) |> tag(:ws)
 
-  identity_token =
-    optional(string("-"))
-    |> choice([token, escape])
+  ident_token =
+    choice([
+      string("--"),
+      optional(string("-"))
+      |> choice([token, escape])
+    ])
     |> optional(choice([token, escape]))
-    |> tag(:identity_token)
+    |> tag(:ident_token)
 
   function_token =
     empty()
-    |> concat(identity_token)
+    |> concat(ident_token)
     |> concat(string("("))
     |> tag(:function_token)
 
   at_keyword_token =
     ignore(string("@"))
-    |> concat(identity_token)
+    |> concat(ident_token)
     |> tag(:at_keyword_token)
 
   hash_token =
@@ -82,13 +88,19 @@ defmodule ExCss do
 
   single_string_token =
     ignore(string("'"))
-    |> repeat_until(choice([concat(string("\\"), newline), utf8_char([not: ?\\, not: ?\n]), escape]), [ascii_char([?'])])
+    |> repeat(
+      lookahead_not(ascii_char([?']))
+      |> choice([concat(string("\\"), newline), utf8_char(not: ?\\, not: ?\n), escape])
+    )
     |> ignore(string("'"))
     |> reduce({Kernel, :to_string, []})
 
   double_string_token =
     ignore(string("\""))
-    |> repeat_until(choice([concat(string("\\"), newline), utf8_char([not: ?\\, not: ?\n]), escape]), [ascii_char([?"])])
+    |> repeat(
+      lookahead_not(ascii_char([?"]))
+      |> choice([concat(string("\\"), newline), utf8_char(not: ?\\, not: ?\n), escape])
+    )
     |> ignore(string("\""))
     |> reduce({Kernel, :to_string, []})
 
@@ -99,7 +111,7 @@ defmodule ExCss do
   url_token =
     ignore(string("url"))
     |> ignore(string("("))
-    |> choice([string_token, url_unquoted])
+    |> choice([comment, string_token, url_unquoted])
     |> optional(ignore(whitespace_token))
     |> ignore(string(")"))
     |> tag(:url_token)
@@ -113,7 +125,7 @@ defmodule ExCss do
 
   dimension_token =
     number_token
-    |> concat(identity_token)
+    |> concat(ident_token)
     |> tag(:dimension_token)
 
   percentage_token =
@@ -138,33 +150,57 @@ defmodule ExCss do
 
   include_match_token =
     string("~=")
+    |> tag(:include_match_token)
 
   dash_match_token =
     string("|=")
+    |> tag(:dash_match_token)
 
   prefix_match_token =
     string("^=")
+    |> tag(:prefix_match_token)
 
   suffix_match_token =
     string("$=")
+    |> tag(:suffix_match_token)
 
   substring_match_token =
     string("*=")
+    |> tag(:substring_match_token)
 
   column_token =
     string("||")
+    |> tag(:column_match_token)
 
   cdo_token =
     string("<!--")
+    |> tag(:cdo_token)
 
   cdc_token =
     string("-->")
+    |> tag(:cdc_token)
+
+  semicolon_token =
+    string(";")
+    |> tag(:semicolon_token)
+
+  curly_bracket_close_token =
+    string("}")
+    |> tag(:curly_bracket_close_token)
+
+  curly_bracket_open_token =
+    string("{")
+    |> tag(:curly_bracket_open_token)
+
+  delim_token = ascii_char([?#, ?+, ?-, ?., ?<, ?@, ?>]) |> tag(:delim)
 
   preserved_token =
     choice([
       parsec(:declaration_list),
       whitespace_token,
-      identity_token,
+      cdo_token,
+      cdc_token,
+      ident_token,
       at_keyword_token,
       hash_token,
       single_string_token,
@@ -181,99 +217,188 @@ defmodule ExCss do
       suffix_match_token,
       substring_match_token,
       column_token,
-      cdo_token,
-      cdc_token
+      delim_token
     ])
 
   curly_brackets_block =
-     string("{")
-     |> optional(repeat(parsec(:component_value)))
-     |> string("}")
-     |> tag(:curly_brackets_block)
+    curly_bracket_open_token
+    |> optional(
+      repeat(
+        lookahead_not(curly_bracket_close_token)
+        |> parsec(:component_value)
+      )
+    )
+    |> optional(curly_bracket_close_token)
+    |> tag(:curly_brackets_block)
 
   parenthesis_block =
-    string("(")
-    |> optional(repeat(parsec(:component_value)))
-    |> string(")")
+    ignore(string("("))
+    |> optional(
+      repeat(
+        lookahead_not(string(")"))
+        |> parsec(:component_value)
+      )
+    )
+    |> optional(ignore(string(")")))
+    |> tag(:parenthesis_block)
 
   square_brackets_block =
-    string("[")
-    |> optional(repeat(parsec(:component_value)))
-    |> string("]")
+    ignore(string("["))
+    |> optional(
+      repeat(
+        lookahead_not(string("]"))
+        |> parsec(:component_value)
+      )
+    )
+    |> optional(ignore(string("]")))
+    |> tag(:square_brackets_block)
 
   functional_block =
     function_token
-    |> optional(repeat(parsec(:component_value)))
+    |> optional(
+      repeat(
+        lookahead_not(string(")"))
+        |> parsec(:component_value)
+      )
+    )
     |> string(")")
+    |> tag(:functional_block)
 
   at_rule =
     at_keyword_token
-    |> optional(repeat(parsec(:component_value)))
-    |> choice([
-      curly_brackets_block,
-      string(";")
-    ])
+    |> optional(
+      repeat(
+        lookahead_not(
+          choice([
+            curly_brackets_block,
+            semicolon_token
+          ])
+        )
+        |> parsec(:component_value)
+      )
+    )
+    |> post_traverse({:join_component_values, []})
+    |> optional(
+      choice([
+        curly_brackets_block,
+        semicolon_token
+      ])
+    )
     |> tag(:at_rule)
 
   qualified_rule =
-    optional(repeat(parsec(:component_value)))
+    optional(
+      repeat(
+        lookahead_not(curly_brackets_block)
+        |> parsec(:component_value)
+      )
+    )
+    |> post_traverse({:join_component_values, []})
     |> concat(curly_brackets_block)
     |> tag(:qualified_rule)
 
   important =
     string("!")
-    |> optional(whitespace)
+    |> optional(whitespace_token)
     |> string("important")
-    |> optional(whitespace)
+    |> optional(whitespace_token)
+    |> tag(:important)
 
   declaration =
-    identity_token
-    |> optional(whitespace)
+    ident_token
+    |> optional(whitespace_token)
     |> concat(string(":"))
-    |> debug()
     |> optional(repeat(parsec(:component_value)))
     |> optional(important)
     |> tag(:declaration)
 
   semicolon_declaration_list =
-    string(";")
+    semicolon_token
     |> concat(parsec(:declaration_list))
 
-  defcombinatorp :declaration_list,
-    optional(whitespace)
+  defparsec(
+    :declaration_list,
+    optional(whitespace_token)
     |> choice([
+      comment,
       declaration,
       concat(declaration, semicolon_declaration_list),
       semicolon_declaration_list,
       concat(at_rule, parsec(:declaration_list))
     ])
+    |> optional(semicolon_token)
     |> tag(:declaration_list)
+  )
 
-  defcombinatorp :component_value,
+  defparsec(
+    :component_value,
     choice([
+      comment,
       preserved_token,
-      # curly_brackets_block,
+      curly_brackets_block,
       parenthesis_block,
       square_brackets_block,
       functional_block
     ])
     |> tag(:component_value)
-    |> debug()
+  )
 
   stylesheet =
     optional(
       repeat(
         choice([
+          comment,
           cdo_token,
           cdc_token,
           whitespace_token,
-          qualified_rule,
           at_rule,
+          qualified_rule
         ])
       )
     )
+    |> post_traverse({:check_for_error, []})
     |> tag(:stylesheet)
 
-  defparsec :css,
+  defparsec(
+    :parse_stylesheet,
     stylesheet
+  )
+
+  def parse_css(css) do
+    css
+    |> String.trim()
+    |> parse_stylesheet()
+  end
+
+  defp check_for_error("", args, context, _line, _offset) do
+    {args, context}
+  end
+
+  defp check_for_error(_, [], _context, _line, _offset) do
+    {:error, "invalid"}
+  end
+
+  defp check_for_error(_, args, context, _line, _offset) do
+    {[{:error, "invalid"} | args], context}
+  end
+
+  defp join_component_values(_rest, [], context, _line, _offset) do
+    {[], context}
+  end
+
+  defp join_component_values(_rest, args, context, _line, _offset) do
+    {at_keyword_token, rest} = Keyword.pop(:lists.reverse(args), :at_keyword_token)
+
+    component_values =
+      rest
+      |> Enum.map(fn {:component_value, value} ->
+        value
+      end)
+
+    if is_nil(at_keyword_token) do
+      {[{:component_values, component_values}], context}
+    else
+      {[{:at_keyword_token, at_keyword_token}, {:component_values, component_values}], context}
+    end
+  end
 end

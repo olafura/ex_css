@@ -211,8 +211,8 @@ defmodule ExCss do
       double_string_token,
       string_token,
       url_token,
-      number_token,
       dimension_token,
+      number_token,
       percentage_token,
       unicode_range_token,
       include_match_token,
@@ -373,10 +373,15 @@ defmodule ExCss do
 
   defparsec(
     :parse_component_value,
-    choice([
-      optional(parsec(:component_value)),
-      optional(ignore(whitespace_token))
-    ])
+    times(
+      choice([
+        parsec(:component_value),
+        optional(ignore(whitespace_token))
+      ])
+      |> optional(lookahead(whitespace)),
+      min: 1,
+      max: 10
+    )
   )
 
   def parse_css(css) do

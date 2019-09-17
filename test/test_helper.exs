@@ -140,6 +140,24 @@ defmodule TestHelper do
     [<<delim>>]
   end
 
+  # {:dimension_token, [number_token: ["4"], ident_token: [token: ["px"]]]}
+  # ["dimension", "4", 4, "integer", "px"]
+  defp do_result_to_list({:dimension_token, values}, parents) do
+    number_token =
+      values
+      |> Keyword.take([:number_token])
+      |> IO.inspect()
+      |> Enum.flat_map(&do_result_to_list(&1, [:dimension_token | parents]))
+      |> tl()
+      |> IO.inspect()
+
+    ident_token =
+      values
+      |> Keyword.get(:ident_token, [])
+      |> Enum.flat_map(&do_result_to_list(&1, [:dimension_token | parents]))
+    [["dimension"] ++ number_token ++ ident_token]
+  end
+
   defp do_result_to_list({:error, message}, _parents) do
     [["error", message]]
   end

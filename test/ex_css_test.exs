@@ -13,7 +13,7 @@ defmodule ExCssTest do
   test "spreadsheet" do
     TestHelper.parse_json("test/css-parsing-tests/stylesheet.json")
     |> Enum.map(fn [stylesheet, check] ->
-      assert ExCss.parse_stylesheet(stylesheet) |> TestHelper.result_to_list() == check
+      assert ExCss.parse_stylesheet(stylesheet) |> TestHelper.result_to_list(:stylesheet) == check
     end)
   end
 
@@ -21,7 +21,7 @@ defmodule ExCssTest do
     TestHelper.parse_json("test/css-parsing-tests/one_component_value.json")
     |> Enum.map(fn [component_value, check] ->
       IO.inspect([component_value, check])
-      assert ExCss.parse_component_value(component_value) |> TestHelper.result_to_list() == check
+      assert ExCss.parse_component_value(component_value) |> IO.inspect() |> TestHelper.result_to_list(:component_value) |> List.first() == check
     end)
   end
 end

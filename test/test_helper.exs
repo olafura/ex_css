@@ -8,12 +8,36 @@ defmodule TestHelper do
     |> Enum.chunk_every(2)
   end
 
-  def result_to_list({:ok, result, _rem, _context, _line, _offset}) do
+  def result_to_list({:ok, result, _rem, _context, _line, _offset}, type) do
     do_result_to_list(result, [])
+    |> clean_whitespace(type)
+    |> check_for_empty(type)
   end
 
-  def result_to_list({:error, message, _rem, _context, _line, _offset}) do
+  def result_to_list({:error, message, _rem, _context, _line, _offset}, _) do
     [["error", message]]
+  end
+
+  def clean_whitespace(list, :component_value) do
+    list
+    |> Enum.reject(fn
+      bin when is_binary(bin) -> 
+        Regex.match?(~r/^\s$/, bin)
+      _ ->
+        false
+    end)
+  end
+
+  def clean_whitespace(list, _type) do
+    list
+  end
+
+  def check_for_empty([], :component_value) do
+    [["error", "empty"]]
+  end
+
+  def check_for_empty(other, _type) do
+    other
   end
 
   defp do_result_to_list(list, parents) when is_list(list) do
@@ -53,7 +77,7 @@ defmodule TestHelper do
     component_values =
       values
       |> Keyword.get(:component_values, [])
-      |> Enum.flat_map(&do_result_to_list(&1, parents))
+      |> Enum.flat_map(&do_result_to_list(&1, [:at_rule | parents]))
 
     curly_brackets_block =
       values

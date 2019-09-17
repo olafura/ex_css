@@ -5,6 +5,14 @@ defmodule ExCss do
 
   import NimbleParsec
 
+  newline_single = ascii_string([?\n, ?\r, ?\f], 1)
+
+  newline_double = string("\r\n")
+
+  newline = choice([newline_double, newline_single])
+
+  whitespace = choice([string(" "), string("\t"), newline])
+
   comment =
     ignore(string("/*"))
     |> repeat(
@@ -15,13 +23,9 @@ defmodule ExCss do
     |> reduce({Kernel, :to_string, []})
     |> tag(:comment)
 
-  newline_single = ascii_string([?\n, ?\r, ?\f], 1)
-
-  newline_double = string("\r\n")
-
-  newline = choice([newline_double, newline_single])
-
-  whitespace = choice([string(" "), string("\t"), newline])
+  empty_comment =
+    ignore(string("/**/"))
+    |> tag(:comment)
 
   hex_digit = [0..9, ?a..?f, ?A..?F]
 
@@ -111,7 +115,7 @@ defmodule ExCss do
   url_token =
     ignore(string("url"))
     |> ignore(string("("))
-    |> choice([comment, string_token, url_unquoted])
+    |> choice([comment, empty_comment, string_token, url_unquoted])
     |> optional(ignore(whitespace_token))
     |> ignore(string(")"))
     |> tag(:url_token)
@@ -321,6 +325,7 @@ defmodule ExCss do
     optional(whitespace_token)
     |> choice([
       comment,
+      empty_comment,
       declaration,
       concat(declaration, semicolon_declaration_list),
       semicolon_declaration_list,
@@ -334,6 +339,7 @@ defmodule ExCss do
     :component_value,
     choice([
       comment,
+      empty_comment,
       preserved_token,
       curly_brackets_block,
       parenthesis_block,
@@ -348,6 +354,7 @@ defmodule ExCss do
       repeat(
         choice([
           comment,
+          empty_comment,
           cdo_token,
           cdc_token,
           whitespace_token,
@@ -366,7 +373,10 @@ defmodule ExCss do
 
   defparsec(
     :parse_component_value,
-    parsec(:component_value)
+    choice([
+      optional(parsec(:component_value)),
+      optional(ignore(whitespace_token))
+    ])
   )
 
   def parse_css(css) do

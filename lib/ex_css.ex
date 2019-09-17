@@ -196,7 +196,7 @@ defmodule ExCss do
     string("{")
     |> tag(:curly_bracket_open_token)
 
-  delim_token = ascii_char([?#, ?+, ?-, ?., ?<, ?@, ?>]) |> tag(:delim)
+  delim_token = ascii_char([?#, ?+, ?-, ?., ?<, ?@, ?>, ?,]) |> tag(:delim)
 
   preserved_token =
     choice([
@@ -257,18 +257,16 @@ defmodule ExCss do
     |> optional(ignore(string("]")))
     |> tag(:square_brackets_block)
 
-  functional_block =
+  function_block =
     function_token
-    |> debug()
     |> optional(
       repeat(
         lookahead_not(string(")"))
         |> parsec(:component_value)
-        |> debug()
       )
     )
     |> string(")")
-    |> tag(:functional_block)
+    |> tag(:function_block)
 
   at_rule =
     at_keyword_token
@@ -342,7 +340,7 @@ defmodule ExCss do
     choice([
       comment,
       empty_comment,
-      functional_block,
+      function_block,
       preserved_token,
       curly_brackets_block,
       parenthesis_block,

@@ -148,6 +148,7 @@ defmodule TestHelper do
       |> Keyword.take([:number_token])
       |> IO.inspect()
       |> Enum.flat_map(&do_result_to_list(&1, [:dimension_token | parents]))
+      |> hd()
       |> tl()
       |> IO.inspect()
 
@@ -156,6 +157,58 @@ defmodule TestHelper do
       |> Keyword.get(:ident_token, [])
       |> Enum.flat_map(&do_result_to_list(&1, [:dimension_token | parents]))
     [["dimension"] ++ number_token ++ ident_token]
+  end
+
+  # {:percentage_token, [{:number_token, ["100"]}, "%"]}
+  # ["percentage", "100", 100, "integer"]
+  defp do_result_to_list({:percentage_token, values}, parents) do
+    number_token =
+      values
+      |> Enum.filter(&match?({_, _}, &1))
+      |> Keyword.take([:number_token])
+      |> Enum.flat_map(&do_result_to_list(&1, [:dimension_token | parents]))
+      |> hd()
+      |> tl()
+
+    [["percentage" | number_token]]
+  end
+
+  # {:functional_block, [{:function_token, [{:ident_token, [token: ["rgba"]]}, "("]}, {:component_value, [percentage_token: [{:number_token, ["100"]}, "%"]]}, {:component_value, [delim: ',']}, {:component_value, [ws: [" "]]}, {:component_value, [percentage_token: [{:number_token, ["0"]}, "%"]]}, {:component_value, [delim: ',']}, {:component_value, [ws: [" "]]}, {:component_value, [percentage_token: [{:number_token, ["50"]}, "%"]]}, {:component_value, [delim: ',']}, {:component_value, [ws: [" "]]}, {:component_value, [number_token: [".5"]]}, ")"]}
+  # [
+    # "function",
+    # "rgba",
+    # ["percentage", "100", 100, "integer"],
+    # ",",
+    # " ",
+    # ["percentage", "0", 0, "integer"],
+    # ",",
+    # " ",
+    # ["percentage", "50", 50, "integer"],
+    # ",",
+    # " ",
+    # ["number", ".5", 0.5, "number"]
+  # ]
+
+  defp do_result_to_list({:function_block, values}, parents) do
+    IO.inspect(values, label: :values)
+    {function_token_value, rest} =
+      values
+      |> Enum.filter(&match?({_, _}, &1))
+      |> Keyword.pop(:function_token, [])
+
+    function_token =
+      function_token_value
+      |> Keyword.get(:ident_token, [])
+      |> Enum.flat_map(&do_result_to_list(&1, [:function_block | parents]))
+      |> List.first()
+      |> IO.inspect(label: :a)
+
+    component_values =
+      rest
+      |> Enum.flat_map(&do_result_to_list(&1, [:function_block | parents]))
+      |> IO.inspect(label: :b)
+
+    [["function", function_token | component_values]]
   end
 
   defp do_result_to_list({:error, message}, _parents) do
@@ -193,10 +246,19 @@ defmodule TestHelper do
     rest =
       case Integer.parse(number) do
         {integer, ""} -> [integer, "integer"]
-        _ -> []
+        _ ->
+          if Regex.match?(~r/\.\d+/, number) do
+            with {float, ""} <- Float.parse("0" <> number) do
+              [float, "number"]
+            end
+          else
+            with {float, ""} <- Float.parse(number) do
+              [float, "number"]
+            end
+          end
       end
 
-    ["number", number | rest]
+    [["number", number | rest]]
   end
 
   defp do_result_to_list({:square_brackets_block, value}, parents) do

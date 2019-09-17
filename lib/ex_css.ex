@@ -212,8 +212,8 @@ defmodule ExCss do
       string_token,
       url_token,
       dimension_token,
-      number_token,
       percentage_token,
+      number_token,
       unicode_range_token,
       include_match_token,
       dash_match_token,
@@ -259,10 +259,12 @@ defmodule ExCss do
 
   functional_block =
     function_token
+    |> debug()
     |> optional(
       repeat(
         lookahead_not(string(")"))
         |> parsec(:component_value)
+        |> debug()
       )
     )
     |> string(")")
@@ -340,11 +342,11 @@ defmodule ExCss do
     choice([
       comment,
       empty_comment,
+      functional_block,
       preserved_token,
       curly_brackets_block,
       parenthesis_block,
-      square_brackets_block,
-      functional_block
+      square_brackets_block
     ])
     |> tag(:component_value)
   )

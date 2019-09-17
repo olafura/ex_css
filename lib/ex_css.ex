@@ -382,6 +382,7 @@ defmodule ExCss do
       min: 1,
       max: 10
     )
+    |> post_traverse({:check_for_error_component_value, []})
   )
 
   def parse_css(css) do
@@ -400,6 +401,18 @@ defmodule ExCss do
 
   defp check_for_error(_, args, context, _line, _offset) do
     {[{:error, "invalid"} | args], context}
+  end
+
+  defp check_for_error_component_value("", args, context, _line, _offset) do
+    {args, context}
+  end
+
+  defp check_for_error_component_value(_, [], _context, _line, _offset) do
+    {:error, "invalid"}
+  end
+
+  defp check_for_error_component_value(rest, args, context, _line, _offset) do
+    {[{:error, rest} | args], context}
   end
 
   defp join_component_values(_rest, [], context, _line, _offset) do

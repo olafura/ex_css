@@ -146,11 +146,11 @@ defmodule TestHelper do
     number_token =
       values
       |> Keyword.take([:number_token])
-      |> IO.inspect()
+      # |> IO.inspect()
       |> Enum.flat_map(&do_result_to_list(&1, [:dimension_token | parents]))
       |> hd()
       |> tl()
-      |> IO.inspect()
+      # |> IO.inspect()
 
     ident_token =
       values
@@ -190,7 +190,7 @@ defmodule TestHelper do
   # ]
 
   defp do_result_to_list({:function_block, values}, parents) do
-    IO.inspect(values, label: :values)
+    # IO.inspect(values, label: :values)
     {function_token_value, rest} =
       values
       |> Enum.filter(&match?({_, _}, &1))
@@ -201,17 +201,18 @@ defmodule TestHelper do
       |> Keyword.get(:ident_token, [])
       |> Enum.flat_map(&do_result_to_list(&1, [:function_block | parents]))
       |> List.first()
-      |> IO.inspect(label: :a)
+      # |> IO.inspect(label: :a)
 
     component_values =
       rest
       |> Enum.flat_map(&do_result_to_list(&1, [:function_block | parents]))
-      |> IO.inspect(label: :b)
+      # |> IO.inspect(label: :b)
 
     [["function", function_token | component_values]]
   end
 
   defp do_result_to_list({:error, message}, _parents) do
+    IO.inspect(message, label: :error2)
     [["error", message]]
   end
 
@@ -269,10 +270,19 @@ defmodule TestHelper do
     [["[]" | new_value]]
   end
 
+  defp do_result_to_list({:curly_brackets_block, value}, parents) do
+    new_value =
+      value
+      |> Enum.flat_map(&do_result_to_list(&1, [:curly_brackets_block | parents]))
+
+    [["{}" | new_value]]
+  end
+
   defp do_result_to_list({:parenthesis_block, value}, parents) do
     new_value =
       value
       |> Enum.flat_map(&do_result_to_list(&1, [:parenthesis_block | parents]))
+      |> hd()
 
     [["()", new_value]]
   end
@@ -284,8 +294,11 @@ defmodule TestHelper do
   defp do_result_to_list({:at_keyword_token, values}, parents) do
     at_keyword_token =
       values
+      |> Keyword.get(:ident_token, [])
       |> Enum.flat_map(&do_result_to_list(&1, [:at_keyword_token | parents]))
+      |> hd()
+      |> IO.inspect()
 
-    [at_keyword_token]
+    [["at-keyword", at_keyword_token]]
   end
 end

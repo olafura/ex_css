@@ -375,15 +375,17 @@ defmodule ExCss do
 
   defparsec(
     :parse_component_value,
-    times(
-      choice([
-        parsec(:component_value),
-        optional(ignore(whitespace_token))
-      ])
-      |> optional(lookahead(whitespace)),
-      min: 1,
-      max: 10
-    )
+    choice([
+      parsec(:component_value)
+      |> times(
+        ignore(whitespace)
+        |> parsec(:component_value)
+        |> debug(),
+        min: 0,
+        max: 10
+      ),
+      optional(whitespace)
+    ])
     |> post_traverse({:check_for_error_component_value, []})
   )
 

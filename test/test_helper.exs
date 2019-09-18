@@ -12,6 +12,16 @@ defmodule TestHelper do
     do_result_to_list(result, [])
     |> clean_whitespace(type)
     |> check_for_empty(type)
+    |> merge_error()
+    # |> IO.inspect(label: :something)
+  end
+
+  def merge_error([list, ["error", message]]) when is_list(list) do
+    [update_in(list, [Access.at(-1)], &(&1 ++ [["error", message]]))]
+  end
+
+  def merge_error(other) do
+    other
   end
 
   def result_to_list({:error, message, _rem, _context, _line, _offset}, _) do
@@ -212,7 +222,7 @@ defmodule TestHelper do
   end
 
   defp do_result_to_list({:error, message}, _parents) do
-    IO.inspect(message, label: :error2)
+    # IO.inspect(message, label: :error2)
     [["error", message]]
   end
 
@@ -297,7 +307,7 @@ defmodule TestHelper do
       |> Keyword.get(:ident_token, [])
       |> Enum.flat_map(&do_result_to_list(&1, [:at_keyword_token | parents]))
       |> hd()
-      |> IO.inspect()
+      # |> IO.inspect()
 
     [["at-keyword", at_keyword_token]]
   end

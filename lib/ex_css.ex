@@ -416,7 +416,11 @@ defmodule ExCss do
   end
 
   defp check_for_error_component_value(rest, args, context, _line, _offset) do
-    {[{:error, rest} | args], context}
+    if String.length(rest) == 1 do
+      {[{:error, rest} | args], context}
+    else
+      {[{:error, "extra-input"}], context}
+    end
   end
 
   defp join_component_values(_rest, [], context, _line, _offset) do

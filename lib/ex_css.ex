@@ -198,6 +198,8 @@ defmodule ExCss do
 
   delim_token = ascii_char([?#, ?+, ?-, ?., ?<, ?@, ?>, ?,]) |> tag(:delim)
 
+  # error_token = utf8_char([]) |> tag(:error)
+
   preserved_token =
     choice([
       parsec(:declaration_list),

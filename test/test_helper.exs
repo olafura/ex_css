@@ -13,6 +13,7 @@ defmodule TestHelper do
     |> clean_whitespace(type)
     |> check_for_empty(type)
     |> merge_error()
+
     # |> IO.inspect(label: :something)
   end
 
@@ -31,8 +32,9 @@ defmodule TestHelper do
   def clean_whitespace(list, :component_value) do
     list
     |> Enum.reject(fn
-      bin when is_binary(bin) -> 
+      bin when is_binary(bin) ->
         Regex.match?(~r/^\s$/, bin)
+
       _ ->
         false
     end)
@@ -160,12 +162,14 @@ defmodule TestHelper do
       |> Enum.flat_map(&do_result_to_list(&1, [:dimension_token | parents]))
       |> hd()
       |> tl()
-      # |> IO.inspect()
+
+    # |> IO.inspect()
 
     ident_token =
       values
       |> Keyword.get(:ident_token, [])
       |> Enum.flat_map(&do_result_to_list(&1, [:dimension_token | parents]))
+
     [["dimension"] ++ number_token ++ ident_token]
   end
 
@@ -185,18 +189,18 @@ defmodule TestHelper do
 
   # {:functional_block, [{:function_token, [{:ident_token, [token: ["rgba"]]}, "("]}, {:component_value, [percentage_token: [{:number_token, ["100"]}, "%"]]}, {:component_value, [delim: ',']}, {:component_value, [ws: [" "]]}, {:component_value, [percentage_token: [{:number_token, ["0"]}, "%"]]}, {:component_value, [delim: ',']}, {:component_value, [ws: [" "]]}, {:component_value, [percentage_token: [{:number_token, ["50"]}, "%"]]}, {:component_value, [delim: ',']}, {:component_value, [ws: [" "]]}, {:component_value, [number_token: [".5"]]}, ")"]}
   # [
-    # "function",
-    # "rgba",
-    # ["percentage", "100", 100, "integer"],
-    # ",",
-    # " ",
-    # ["percentage", "0", 0, "integer"],
-    # ",",
-    # " ",
-    # ["percentage", "50", 50, "integer"],
-    # ",",
-    # " ",
-    # ["number", ".5", 0.5, "number"]
+  # "function",
+  # "rgba",
+  # ["percentage", "100", 100, "integer"],
+  # ",",
+  # " ",
+  # ["percentage", "0", 0, "integer"],
+  # ",",
+  # " ",
+  # ["percentage", "50", 50, "integer"],
+  # ",",
+  # " ",
+  # ["number", ".5", 0.5, "number"]
   # ]
 
   defp do_result_to_list({:function_block, values}, parents) do
@@ -211,12 +215,14 @@ defmodule TestHelper do
       |> Keyword.get(:ident_token, [])
       |> Enum.flat_map(&do_result_to_list(&1, [:function_block | parents]))
       |> List.first()
-      # |> IO.inspect(label: :a)
+
+    # |> IO.inspect(label: :a)
 
     component_values =
       rest
       |> Enum.flat_map(&do_result_to_list(&1, [:function_block | parents]))
-      # |> IO.inspect(label: :b)
+
+    # |> IO.inspect(label: :b)
 
     [["function", function_token | component_values]]
   end
@@ -256,7 +262,9 @@ defmodule TestHelper do
   defp do_result_to_list({:number_token, [number]}, _parents) do
     rest =
       case Integer.parse(number) do
-        {integer, ""} -> [integer, "integer"]
+        {integer, ""} ->
+          [integer, "integer"]
+
         _ ->
           if Regex.match?(~r/\.\d+/, number) do
             with {float, ""} <- Float.parse("0" <> number) do
@@ -307,7 +315,8 @@ defmodule TestHelper do
       |> Keyword.get(:ident_token, [])
       |> Enum.flat_map(&do_result_to_list(&1, [:at_keyword_token | parents]))
       |> hd()
-      # |> IO.inspect()
+
+    # |> IO.inspect()
 
     [["at-keyword", at_keyword_token]]
   end

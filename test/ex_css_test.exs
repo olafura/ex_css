@@ -21,7 +21,11 @@ defmodule ExCssTest do
     TestHelper.parse_json("test/css-parsing-tests/one_component_value.json")
     |> Enum.map(fn [component_value, check] ->
       IO.inspect([component_value, check])
-      assert ExCss.parse_component_value(component_value) |> IO.inspect() |> TestHelper.result_to_list(:component_value) |> List.first() == check
+
+      assert ExCss.parse_component_value(component_value)
+             |> IO.inspect()
+             |> TestHelper.result_to_list(:component_value)
+             |> List.first() == check
     end)
   end
 end

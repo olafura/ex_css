@@ -8,12 +8,46 @@ defmodule TestHelper do
     |> Enum.chunk_every(2)
   end
 
-  def result_to_list({:ok, result, _rem, _context, _line, _offset}) do
+  def result_to_list({:ok, result, _rem, _context, _line, _offset}, type) do
     do_result_to_list(result, [])
+    |> clean_whitespace(type)
+    |> check_for_empty(type)
+    |> merge_error()
   end
 
-  def result_to_list({:error, message, _rem, _context, _line, _offset}) do
+  def merge_error([list, ["error", message]]) when is_list(list) do
+    [update_in(list, [Access.at(-1)], &(&1 ++ [["error", message]]))]
+  end
+
+  def merge_error(other) do
+    other
+  end
+
+  def result_to_list({:error, message, _rem, _context, _line, _offset}, _) do
     [["error", message]]
+  end
+
+  def clean_whitespace(list, :component_value) do
+    list
+    |> Enum.reject(fn
+      bin when is_binary(bin) ->
+        Regex.match?(~r/^\s$/, bin)
+
+      _ ->
+        false
+    end)
+  end
+
+  def clean_whitespace(list, _type) do
+    list
+  end
+
+  def check_for_empty([], :component_value) do
+    [["error", "empty"]]
+  end
+
+  def check_for_empty(other, _type) do
+    other
   end
 
   defp do_result_to_list(list, parents) when is_list(list) do
@@ -53,7 +87,7 @@ defmodule TestHelper do
     component_values =
       values
       |> Keyword.get(:component_values, [])
-      |> Enum.flat_map(&do_result_to_list(&1, parents))
+      |> Enum.flat_map(&do_result_to_list(&1, [:at_rule | parents]))
 
     curly_brackets_block =
       values
@@ -116,6 +150,56 @@ defmodule TestHelper do
     [<<delim>>]
   end
 
+  defp do_result_to_list({:dimension_token, values}, parents) do
+    number_token =
+      values
+      |> Keyword.take([:number_token])
+      # |> IO.inspect()
+      |> Enum.flat_map(&do_result_to_list(&1, [:dimension_token | parents]))
+      |> hd()
+      |> tl()
+
+    # |> IO.inspect()
+
+    ident_token =
+      values
+      |> Keyword.get(:ident_token, [])
+      |> Enum.flat_map(&do_result_to_list(&1, [:dimension_token | parents]))
+
+    [["dimension"] ++ number_token ++ ident_token]
+  end
+
+  defp do_result_to_list({:percentage_token, values}, parents) do
+    number_token =
+      values
+      |> Enum.filter(&match?({_, _}, &1))
+      |> Keyword.take([:number_token])
+      |> Enum.flat_map(&do_result_to_list(&1, [:dimension_token | parents]))
+      |> hd()
+      |> tl()
+
+    [["percentage" | number_token]]
+  end
+
+  defp do_result_to_list({:function_block, values}, parents) do
+    {function_token_value, rest} =
+      values
+      |> Enum.filter(&match?({_, _}, &1))
+      |> Keyword.pop(:function_token, [])
+
+    function_token =
+      function_token_value
+      |> Keyword.get(:ident_token, [])
+      |> Enum.flat_map(&do_result_to_list(&1, [:function_block | parents]))
+      |> List.first()
+
+    component_values =
+      rest
+      |> Enum.flat_map(&do_result_to_list(&1, [:function_block | parents]))
+
+    [["function", function_token | component_values]]
+  end
+
   defp do_result_to_list({:error, message}, _parents) do
     [["error", message]]
   end
@@ -150,11 +234,22 @@ defmodule TestHelper do
   defp do_result_to_list({:number_token, [number]}, _parents) do
     rest =
       case Integer.parse(number) do
-        {integer, ""} -> [integer, "integer"]
-        _ -> []
+        {integer, ""} ->
+          [integer, "integer"]
+
+        _ ->
+          if Regex.match?(~r/\.\d+/, number) do
+            with {float, ""} <- Float.parse("0" <> number) do
+              [float, "number"]
+            end
+          else
+            with {float, ""} <- Float.parse(number) do
+              [float, "number"]
+            end
+          end
       end
 
-    ["number", number | rest]
+    [["number", number | rest]]
   end
 
   defp do_result_to_list({:square_brackets_block, value}, parents) do
@@ -165,10 +260,19 @@ defmodule TestHelper do
     [["[]" | new_value]]
   end
 
+  defp do_result_to_list({:curly_brackets_block, value}, parents) do
+    new_value =
+      value
+      |> Enum.flat_map(&do_result_to_list(&1, [:curly_brackets_block | parents]))
+
+    [["{}" | new_value]]
+  end
+
   defp do_result_to_list({:parenthesis_block, value}, parents) do
     new_value =
       value
       |> Enum.flat_map(&do_result_to_list(&1, [:parenthesis_block | parents]))
+      |> hd()
 
     [["()", new_value]]
   end
@@ -180,8 +284,10 @@ defmodule TestHelper do
   defp do_result_to_list({:at_keyword_token, values}, parents) do
     at_keyword_token =
       values
+      |> Keyword.get(:ident_token, [])
       |> Enum.flat_map(&do_result_to_list(&1, [:at_keyword_token | parents]))
+      |> hd()
 
-    [at_keyword_token]
+    [["at-keyword", at_keyword_token]]
   end
 end

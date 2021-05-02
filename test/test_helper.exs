@@ -86,10 +86,6 @@ defmodule TestHelper do
     [" "]
   end
 
-  defp do_result_to_list({:token, token}, _parents) do
-    token
-  end
-
   defp do_result_to_list({:cdo_token, token}, [parent | _rest])
        when parent in [:qualified_rule] do
     token

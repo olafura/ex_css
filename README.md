@@ -1,4 +1,4 @@
-# ExCss
+# ExCSS
 
 **TODO: Add description**
 

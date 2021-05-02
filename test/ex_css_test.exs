@@ -1,9 +1,9 @@
-defmodule ExCssTest do
+defmodule ExCSSTest do
   use ExUnit.Case
-  doctest ExCss
+  doctest ExCSS
 
   test "simple css" do
-    ExCss.Parser.parse_css("""
+    ExCSS.Parser.parse_css("""
     p.something {
       color: red;
     }
@@ -13,7 +13,7 @@ defmodule ExCssTest do
   test "spreadsheet" do
     TestHelper.parse_json("test/css-parsing-tests/stylesheet.json")
     |> Enum.map(fn [stylesheet, check] ->
-      assert ExCss.Parser.parse_stylesheet(stylesheet) |> TestHelper.result_to_list() == check
+      assert ExCSS.Parser.parse_stylesheet(stylesheet) |> TestHelper.result_to_list() == check
     end)
   end
 end

@@ -1,6 +1,6 @@
-defmodule ExCss.Serializer do
+defmodule ExCSS.Serializer do
   @moduledoc """
-  Documentation for ExCss.Serializer.
+  Documentation for ExCSS.Serializer.
   """
 
   def serialize(tree, options \\ []) do

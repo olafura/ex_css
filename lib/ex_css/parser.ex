@@ -53,13 +53,12 @@ defmodule ExCSS.Parser do
 
   unicode_up_to_six_hex = ascii_string(hex_digit, min: 1, max: 6)
 
-  url_unquoted =
-    repeat(
-      lookahead_not(ascii_char([?", ?', ?(, ?), ?\\, ?\s, ?\t, ?\n, ?\r, ?\f]))
-      |> choice([utf8_char([]), escape])
-    )
-    |> reduce({Kernel, :to_string, []})
-    |> tag(:url_unquoted)
+  # url_unquoted =
+  #   repeat(
+  #     lookahead_not(ascii_char([?", ?', ?(, ?), ?\\, ?\s, ?\t, ?\n, ?\r, ?\f]))
+  #     |> choice([utf8_char([]), escape])
+  #   )
+  #   |> reduce({Kernel, :to_string, []})
 
   whitespace_token = times(whitespace, min: 1) |> tag(:ws)
 
@@ -111,13 +110,14 @@ defmodule ExCSS.Parser do
     choice([single_string_token, double_string_token])
     |> tag(:string_token)
 
-  url_token =
-    ignore(string("url"))
-    |> ignore(string("("))
-    |> choice([comment, empty_comment, string_token, url_unquoted])
-    |> optional(ignore(whitespace_token))
-    |> ignore(string(")"))
-    |> tag(:url_token)
+  # Doesn't work yet
+  # url_token =
+  #   ignore(string("url"))
+  #   |> ignore(string("("))
+  #   |> choice([comment, empty_comment, string_token, url_unquoted])
+  #   |> optional(ignore(whitespace_token))
+  #   |> ignore(string(")"))
+  #   |> tag(:url_token)
 
   number_token =
     optional(ascii_string([?+, ?-], 1))
@@ -199,7 +199,9 @@ defmodule ExCSS.Parser do
     string("{")
     |> tag(:curly_bracket_open_token)
 
-  delim_token = ascii_char([?#, ?+, ?-, ?., ?<, ?@, ?>, ?,]) |> tag(:delim)
+  delim_token =
+    ascii_char([?#, ?+, ?-, ?., ?<, ?@, ?>, ?,])
+    |> tag(:delim_token)
 
   preserved_token =
     choice([
@@ -212,7 +214,7 @@ defmodule ExCSS.Parser do
       single_string_token,
       double_string_token,
       string_token,
-      url_token,
+      # url_token,
       dimension_token,
       percentage_token,
       number_token,
@@ -444,7 +446,7 @@ defmodule ExCSS.Parser do
     if is_nil(at_keyword_token) do
       {[{:component_values, component_values}], context}
     else
-      {[{:at_keyword_token, at_keyword_token}, {:component_values, component_values}], context}
+      {[{:component_values, component_values}, {:at_keyword_token, at_keyword_token}], context}
     end
   end
 end

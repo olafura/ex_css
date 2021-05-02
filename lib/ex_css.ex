@@ -9,9 +9,9 @@ defmodule ExCSS do
     end
   end
 
-  def stringify(tree) do
+  def stringify(tree, options \\ []) do
     tree
-    |> ExCSS.Serializer.serialize()
+    |> ExCSS.Serializer.serialize(options)
     |> IO.iodata_to_binary()
   end
 end

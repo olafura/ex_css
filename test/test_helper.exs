@@ -112,7 +112,7 @@ defmodule TestHelper do
     token
   end
 
-  defp do_result_to_list({:delim, [delim]}, _parents) do
+  defp do_result_to_list({:delim_token, [delim]}, _parents) do
     [<<delim>>]
   end
 

@@ -201,7 +201,6 @@ defmodule ExCss.Parser do
 
   delim_token = ascii_char([?#, ?+, ?-, ?., ?<, ?@, ?>, ?,]) |> tag(:delim)
 
-
   preserved_token =
     choice([
       whitespace_token,
@@ -225,8 +224,8 @@ defmodule ExCss.Parser do
       substring_match_token,
       column_token,
       delim_token,
-      colon_token,
-      semicolon_token
+      colon_token
+      # semicolon_token Have to figure how to exclude this in declaration list
     ])
 
   curly_brackets_block =
@@ -234,7 +233,7 @@ defmodule ExCss.Parser do
     |> optional(
       repeat(
         lookahead_not(curly_bracket_close_token)
-        |> parsec(:component_value)
+        |> choice([parsec(:declaration_list), parsec(:component_value)])
       )
     )
     |> optional(curly_bracket_close_token)
@@ -317,7 +316,10 @@ defmodule ExCss.Parser do
     ident_token
     |> optional(whitespace_token)
     |> concat(colon_token)
-    |> optional(repeat(parsec(:component_value)))
+    |> optional(
+      repeat(parsec(:component_value))
+      # |> post_traverse({:join_component_values, []}) return it in the wrong order
+    )
     |> optional(important)
     |> tag(:declaration)
 

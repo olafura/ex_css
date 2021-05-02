@@ -1,4 +1,4 @@
-defmodule ExCss.MixProject do
+defmodule ExCSS.MixProject do
   use Mix.Project
 
   def project do

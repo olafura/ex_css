@@ -1,17 +1,17 @@
-defmodule ExCss do
+defmodule ExCSS do
   @moduledoc """
-  Documentation for ExCss.Parser.
+  Documentation for ExCSS.Parser.
   """
 
   def parse(css) do
-    with {:ok, tree, "", _, _, _} <- ExCss.Parser.parse_css(css) do
+    with {:ok, tree, "", _, _, _} <- ExCSS.Parser.parse_css(css) do
       {:ok, tree}
     end
   end
 
   def stringify(tree) do
     tree
-    |> ExCss.Serializer.serialize()
+    |> ExCSS.Serializer.serialize()
     |> IO.iodata_to_binary()
   end
 end

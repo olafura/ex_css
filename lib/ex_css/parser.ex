@@ -1,6 +1,6 @@
-defmodule ExCss do
+defmodule ExCss.Parser do
   @moduledoc """
-  Documentation for ExCss.
+  Documentation for ExCss.Parser.
   """
 
   import NimbleParsec

@@ -5,6 +5,14 @@ defmodule ExCss do
 
   import NimbleParsec
 
+  newline_single = ascii_string([?\n, ?\r, ?\f], 1)
+
+  newline_double = string("\r\n")
+
+  newline = choice([newline_double, newline_single])
+
+  whitespace = choice([string(" "), string("\t"), newline])
+
   comment =
     ignore(string("/*"))
     |> repeat(
@@ -15,13 +23,9 @@ defmodule ExCss do
     |> reduce({Kernel, :to_string, []})
     |> tag(:comment)
 
-  newline_single = ascii_string([?\n, ?\r, ?\f], 1)
-
-  newline_double = string("\r\n")
-
-  newline = choice([newline_double, newline_single])
-
-  whitespace = choice([string(" "), string("\t"), newline])
+  empty_comment =
+    ignore(string("/**/"))
+    |> tag(:comment)
 
   hex_digit = [0..9, ?a..?f, ?A..?F]
 
@@ -111,7 +115,7 @@ defmodule ExCss do
   url_token =
     ignore(string("url"))
     |> ignore(string("("))
-    |> choice([comment, string_token, url_unquoted])
+    |> choice([comment, empty_comment, string_token, url_unquoted])
     |> optional(ignore(whitespace_token))
     |> ignore(string(")"))
     |> tag(:url_token)
@@ -192,7 +196,8 @@ defmodule ExCss do
     string("{")
     |> tag(:curly_bracket_open_token)
 
-  delim_token = ascii_char([?#, ?+, ?-, ?., ?<, ?@, ?>]) |> tag(:delim)
+  delim_token = ascii_char([?#, ?+, ?-, ?., ?<, ?@, ?>, ?,]) |> tag(:delim)
+
 
   preserved_token =
     choice([
@@ -207,9 +212,9 @@ defmodule ExCss do
       double_string_token,
       string_token,
       url_token,
-      number_token,
       dimension_token,
       percentage_token,
+      number_token,
       unicode_range_token,
       include_match_token,
       dash_match_token,
@@ -253,7 +258,7 @@ defmodule ExCss do
     |> optional(ignore(string("]")))
     |> tag(:square_brackets_block)
 
-  functional_block =
+  function_block =
     function_token
     |> optional(
       repeat(
@@ -262,7 +267,7 @@ defmodule ExCss do
       )
     )
     |> string(")")
-    |> tag(:functional_block)
+    |> tag(:function_block)
 
   at_rule =
     at_keyword_token
@@ -321,6 +326,7 @@ defmodule ExCss do
     optional(whitespace_token)
     |> choice([
       comment,
+      empty_comment,
       declaration,
       concat(declaration, semicolon_declaration_list),
       semicolon_declaration_list,
@@ -330,15 +336,16 @@ defmodule ExCss do
     |> tag(:declaration_list)
   )
 
-  defparsec(
+  defcombinatorp(
     :component_value,
     choice([
       comment,
+      empty_comment,
+      function_block,
       preserved_token,
       curly_brackets_block,
       parenthesis_block,
-      square_brackets_block,
-      functional_block
+      square_brackets_block
     ])
     |> tag(:component_value)
   )
@@ -348,6 +355,7 @@ defmodule ExCss do
       repeat(
         choice([
           comment,
+          empty_comment,
           cdo_token,
           cdc_token,
           whitespace_token,
@@ -362,6 +370,22 @@ defmodule ExCss do
   defparsec(
     :parse_stylesheet,
     stylesheet
+  )
+
+  defparsec(
+    :parse_component_value,
+    choice([
+      parsec(:component_value)
+      |> times(
+        ignore(whitespace)
+        |> parsec(:component_value)
+        |> debug(),
+        min: 0,
+        max: 10
+      ),
+      optional(whitespace)
+    ])
+    |> post_traverse({:check_for_error_component_value, []})
   )
 
   def parse_css(css) do
@@ -380,6 +404,22 @@ defmodule ExCss do
 
   defp check_for_error(_, args, context, _line, _offset) do
     {[{:error, "invalid"} | args], context}
+  end
+
+  defp check_for_error_component_value("", args, context, _line, _offset) do
+    {args, context}
+  end
+
+  defp check_for_error_component_value(_, [], _context, _line, _offset) do
+    {:error, "invalid"}
+  end
+
+  defp check_for_error_component_value(rest, args, context, _line, _offset) do
+    if String.length(rest) == 1 do
+      {[{:error, rest} | args], context}
+    else
+      {[{:error, "extra-input"}], context}
+    end
   end
 
   defp join_component_values(_rest, [], context, _line, _offset) do

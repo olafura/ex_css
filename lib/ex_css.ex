@@ -34,13 +34,12 @@ defmodule ExCss do
     |> ascii_string(hex_digit, min: 1, max: 6)
     |> tag(:escape)
 
-  non_ascii_token = utf8_char(not: 0..127)
+  non_ascii = utf8_char(not: 0..127)
 
-  token =
-    choice([ascii_char([?a..?z, ?A..?Z, ?_]), non_ascii_token])
-    |> optional(repeat(choice([ascii_char([?a..?z, ?A..?Z, ?_, ?-]), non_ascii_token])))
+  ident_body =
+    choice([ascii_char([?a..?z, ?A..?Z, ?_]), non_ascii])
+    |> optional(repeat(choice([ascii_char([?a..?z, ?A..?Z, ?_, ?-]), non_ascii])))
     |> reduce({Kernel, :to_string, []})
-    |> tag(:token)
 
   e_number =
     ascii_string([?e, ?E], 1)
@@ -68,9 +67,9 @@ defmodule ExCss do
     choice([
       string("--"),
       optional(string("-"))
-      |> choice([token, escape])
+      |> choice([ident_body, escape])
     ])
-    |> optional(choice([token, escape]))
+    |> optional(choice([ident_body, escape]))
     |> tag(:ident_token)
 
   function_token =

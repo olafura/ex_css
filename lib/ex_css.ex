@@ -187,6 +187,10 @@ defmodule ExCss do
     string(";")
     |> tag(:semicolon_token)
 
+  colon_token =
+    string(":")
+    |> tag(:colon_token)
+
   curly_bracket_close_token =
     string("}")
     |> tag(:curly_bracket_close_token)
@@ -200,7 +204,6 @@ defmodule ExCss do
 
   preserved_token =
     choice([
-      parsec(:declaration_list),
       whitespace_token,
       cdo_token,
       cdc_token,
@@ -221,7 +224,9 @@ defmodule ExCss do
       suffix_match_token,
       substring_match_token,
       column_token,
-      delim_token
+      delim_token,
+      colon_token,
+      semicolon_token
     ])
 
   curly_brackets_block =
@@ -311,7 +316,7 @@ defmodule ExCss do
   declaration =
     ident_token
     |> optional(whitespace_token)
-    |> concat(string(":"))
+    |> concat(colon_token)
     |> optional(repeat(parsec(:component_value)))
     |> optional(important)
     |> tag(:declaration)

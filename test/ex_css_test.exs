@@ -3,7 +3,7 @@ defmodule ExCssTest do
   doctest ExCss
 
   test "simple css" do
-    ExCss.parse_css("""
+    ExCss.Parser.parse_css("""
     p.something {
       color: red;
     }
@@ -13,7 +13,7 @@ defmodule ExCssTest do
   test "spreadsheet" do
     TestHelper.parse_json("test/css-parsing-tests/stylesheet.json")
     |> Enum.map(fn [stylesheet, check] ->
-      assert ExCss.parse_stylesheet(stylesheet) |> TestHelper.result_to_list() == check
+      assert ExCss.Parser.parse_stylesheet(stylesheet) |> TestHelper.result_to_list() == check
     end)
   end
 end

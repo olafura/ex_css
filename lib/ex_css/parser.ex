@@ -403,19 +403,19 @@ defmodule ExCSS.Parser do
   end
 
   defp check_for_error("", args, context, _line, _offset) do
-    {args, context}
+    {"", args, context}
   end
 
   defp check_for_error(_, [], _context, _line, _offset) do
     {:error, "invalid"}
   end
 
-  defp check_for_error(_, args, context, _line, _offset) do
-    {[{:error, "invalid"} | args], context}
+  defp check_for_error(rest, args, context, _line, _offset) do
+    {rest, [{:error, "invalid"} | args], context}
   end
 
   defp check_for_error_component_value("", args, context, _line, _offset) do
-    {args, context}
+    {"", args, context}
   end
 
   defp check_for_error_component_value(_, [], _context, _line, _offset) do
@@ -424,29 +424,29 @@ defmodule ExCSS.Parser do
 
   defp check_for_error_component_value(rest, args, context, _line, _offset) do
     if String.length(rest) == 1 do
-      {[{:error, rest} | args], context}
+      {rest, [{:error, rest} | args], context}
     else
-      {[{:error, "extra-input"}], context}
+      {rest, [{:error, "extra-input"}], context}
     end
   end
 
-  defp join_component_values(_rest, [], context, _line, _offset) do
-    {[], context}
+  defp join_component_values(rest, [], context, _line, _offset) do
+    {rest, [], context}
   end
 
-  defp join_component_values(_rest, args, context, _line, _offset) do
-    {at_keyword_token, rest} = Keyword.pop(:lists.reverse(args), :at_keyword_token)
+  defp join_component_values(rest, args, context, _line, _offset) do
+    {at_keyword_token, at_rest} = Keyword.pop(:lists.reverse(args), :at_keyword_token)
 
     component_values =
-      rest
+      at_rest
       |> Enum.map(fn {:component_value, value} ->
         value
       end)
 
     if is_nil(at_keyword_token) do
-      {[{:component_values, component_values}], context}
+      {rest, [{:component_values, component_values}], context}
     else
-      {[{:component_values, component_values}, {:at_keyword_token, at_keyword_token}], context}
+      {rest, [{:component_values, component_values}, {:at_keyword_token, at_keyword_token}], context}
     end
   end
 end

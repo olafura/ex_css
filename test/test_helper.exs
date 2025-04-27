@@ -64,7 +64,9 @@ defmodule TestHelper do
     curly_brackets_block =
       values
       |> Keyword.get(:curly_brackets_block, [])
+      |> IO.inspect(label: :curly_brackets_block)
       |> Enum.flat_map(&do_result_to_list(&1, parents))
+    dbg(curly_brackets_block)
 
     [
       [
@@ -194,6 +196,7 @@ defmodule TestHelper do
     new_value =
       value
       |> Enum.flat_map(&do_result_to_list(&1, [:parenthesis_block | parents]))
+      |> List.flatten()
 
     [["()", new_value]]
   end

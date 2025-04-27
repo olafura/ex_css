@@ -21,8 +21,8 @@ defmodule ExCSS.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:nimble_parsec, "~> 0.2"},
-      {:jason, "~> 1.1", only: :test, runtime: false}
+      {:nimble_parsec, "~> 1.4"},
+      {:jason, "~> 1.4", only: :test, runtime: false}
     ]
   end
 end

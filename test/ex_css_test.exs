@@ -23,7 +23,10 @@ defmodule ExCSSTest do
   test "one_component_value" do
     TestHelper.parse_json("test/css-parsing-tests/one_component_value.json")
     |> Enum.map(fn [component_value, check] ->
-      real = ExCSS.Parser.parse_component_value(component_value) |> TestHelper.result_to_list()
+      real =
+        ExCSS.Parser.parse_component_value(component_value)
+        |> TestHelper.result_to_list()
+        |> List.first()
 
       assert real == check,
              "component_value: #{inspect(component_value)}\nc: #{inspect(check)}\nr: #{inspect(real)}"

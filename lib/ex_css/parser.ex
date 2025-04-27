@@ -9,23 +9,28 @@ defmodule ExCSS.Parser do
 
   newline_double = string("\r\n")
 
-  newline = choice([newline_double, newline_single])
+  newline = choice([newline_double, newline_single]) |> replace("\n")
+
+  # null_char = utf8_char([?0], 1)
+  #
+  # leading_surragate = utf8_char([0xD800..0xDBFF], 1)
+  # trailing_surragate = utf8_char([0xDC00..0xDFFF], 1)
+
+  # invalid_char = choice([null_char, leading_surragate, trailing_surragate]) |> replace("\uFFFD")
 
   whitespace = choice([string(" "), string("\t"), newline])
 
   comment =
-    ignore(string("/*"))
+    string("/*")
     |> repeat(
       lookahead_not(string("*/"))
       |> utf8_char([])
     )
-    |> ignore(string("*/"))
-    |> reduce({Kernel, :to_string, []})
-    |> tag(:comment)
+    |> string("*/")
+    |> ignore()
 
   empty_comment =
     ignore(string("/**/"))
-    |> tag(:comment)
 
   hex_digit = [0..9, ?a..?f, ?A..?F]
 
@@ -74,7 +79,7 @@ defmodule ExCSS.Parser do
   function_token =
     empty()
     |> concat(ident_token)
-    |> concat(string("("))
+    |> ignore(string("("))
     |> tag(:function_token)
 
   at_keyword_token =
@@ -133,7 +138,7 @@ defmodule ExCSS.Parser do
 
   percentage_token =
     number_token
-    |> concat(string("%"))
+    |> ignore(string("%"))
     |> tag(:percentage_token)
 
   unicode_range_token =
@@ -271,7 +276,7 @@ defmodule ExCSS.Parser do
         |> parsec(:component_value)
       )
     )
-    |> string(")")
+    |> ignore(string(")"))
     |> tag(:function_block)
 
   at_rule =
@@ -347,14 +352,13 @@ defmodule ExCSS.Parser do
   defcombinatorp(
     :component_value,
     choice([
-      comment,
-      empty_comment,
       function_block,
       preserved_token,
       curly_brackets_block,
       parenthesis_block,
       square_brackets_block
     ])
+    #   |> debug()
     |> tag(:component_value)
   )
 
@@ -380,25 +384,28 @@ defmodule ExCSS.Parser do
     stylesheet
   )
 
-  defparsecp(
-    :do_parse_component_value,
-    choice([
-      parsec(:component_value)
-      |> times(
-        ignore(whitespace)
-        |> parsec(:component_value)
-        |> debug(),
-        min: 0,
-        max: 10
-      ),
-      optional(whitespace)
-    ])
-    |> post_traverse({:check_for_error_component_value, []})
+  defparsec(
+    :parse_component_value,
+    pre_traverse(
+      choice([
+        times(
+          choice([
+            ignore(whitespace_token),
+            ignore(newline),
+            ignore(comment),
+            ignore(empty_comment),
+            parsec(:component_value)
+          ]),
+          min: 0,
+          max: 10
+        ),
+        optional(ignore(whitespace_token)),
+        optional(ignore(newline))
+      ])
+      |> post_traverse({:check_for_error_component_value, []}),
+      {:check_for_empty_component_value, []}
+    )
   )
-
-  def parse_component_value(""), do: ["error", "empty"]
-
-  def parse_component_value(component_value), do: do_parse_component_value(component_value)
 
   def parse_css(css) do
     css
@@ -418,15 +425,28 @@ defmodule ExCSS.Parser do
     {rest, [{:error, "invalid"} | args], context}
   end
 
+  defp check_for_empty_component_value("", [], context, _line, _offset) do
+    {:error, "empty"}
+  end
+
+  defp check_for_empty_component_value(rest, args, context, _line, _offset) do
+    {rest, args, context}
+  end
+
   defp check_for_error_component_value("", args, context, _line, _offset) do
     {"", args, context}
   end
 
-  defp check_for_error_component_value(_, [], _context, _line, _offset) do
-    {:error, "invalid"}
+  defp check_for_error_component_value(rest, [], _context, _line, _offset) do
+    IO.inspect(rest, label: :rest)
+    {:error, "empty"}
   end
 
   defp check_for_error_component_value(rest, args, context, _line, _offset) do
+    IO.inspect(rest, label: :rest)
+    IO.inspect(args, label: :args)
+    IO.inspect(context, label: :context)
+
     if String.length(rest) == 1 do
       {rest, [{:error, rest} | args], context}
     else

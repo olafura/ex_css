@@ -1,6 +1,12 @@
 ExUnit.start()
 
 defmodule TestHelper do
+  def bare?(parents) do
+    IO.inspect(parents, label: :bare?)
+    parent = List.first(parents)
+    parent in [:dimension_token, :function_token, :percentage_token]
+  end
+
   def parse_json(file) do
     file
     |> File.read!()
@@ -129,10 +135,16 @@ defmodule TestHelper do
       values
       |> Enum.flat_map(&do_result_to_list(&1, [:ident_token | parents]))
 
-    [["ident" | ident]]
+    if bare?(parents) do
+      ident
+    else
+      [["ident" | ident]]
+    end
   end
 
   defp do_result_to_list({:component_value, value}, parents) do
+    dbg(value)
+
     value
     |> Enum.flat_map(&do_result_to_list(&1, [:component_value | parents]))
   end
@@ -147,14 +159,27 @@ defmodule TestHelper do
     |> Enum.flat_map(&do_result_to_list(&1, [:declaration | parents]))
   end
 
-  defp do_result_to_list({:number_token, [number]}, _parents) do
-    rest =
-      case Integer.parse(number) do
-        {integer, ""} -> [integer, "integer"]
-        _ -> []
-      end
+  defp to_int_or_float({integer, ""}, _), do: [integer, "integer"]
 
-    ["number", number | rest]
+  defp to_int_or_float(_, number) do
+    to_float(Float.parse("0" <> number))
+  end
+
+  def to_float({number, ""}), do: [number, "number"]
+  def to_float(_), do: []
+
+  defp int_or_float(number) do
+    to_int_or_float(Integer.parse(number), number)
+  end
+
+  defp do_result_to_list({:number_token, [number]}, parents) do
+    rest = int_or_float(number)
+
+    if bare?(parents) do
+      [number | rest]
+    else
+      [["number", number | rest]]
+    end
   end
 
   defp do_result_to_list({:square_brackets_block, value}, parents) do
@@ -183,5 +208,58 @@ defmodule TestHelper do
       |> Enum.flat_map(&do_result_to_list(&1, [:at_keyword_token | parents]))
 
     [at_keyword_token]
+  end
+
+  defp do_result_to_list({:dimension_token, values}, parents) do
+    dimension_token =
+      values
+      |> Enum.flat_map(&do_result_to_list(&1, [:dimension_token | parents]))
+
+    [["dimension" | dimension_token]]
+  end
+
+  #   ["function", "rgba",
+  #     ["percentage", "100", 100, "integer"], ",", " ",
+  #     ["percentage", "0", 0, "integer"], ",", " ",
+  #     ["percentage", "50", 50, "integer"], ",", " ",
+  #     ["number", ".5", 0.5, "number"]
+  # ]
+  # {:function_block, [{:function_token, [{:ident_token, ["rgba"]}, "("]}, {:component_value, [percentage_token: [{:number_token, ["100"]}, "%"]]}, {:component_value, [delim_token: ~c","]}, {:component_value, [ws: [" "]]}, {:component_value, [percentage_token: [{:number_token, ["0"]}, "%"]]}, {:component_value, [delim_token: ~c","]}, {:component_value, [ws: [" "]]}, {:component_value, [percentage_token: [{:number_token, ["50"]}, "%"]]}, {:component_value, [delim_token: ~c","]}, {:component_value, [ws: [" "]]}, {:component_value, [number_token: [".5"]]}, ")"]}
+
+  defp do_result_to_list({:function_block, values}, parents) do
+    IO.inspect(values, label: :values)
+
+    function_block =
+      values
+      |> Enum.flat_map(&do_result_to_list(&1, [:function_block | parents]))
+
+    IO.inspect(function_block, label: :function_block)
+
+    [function_block]
+  end
+
+  defp do_result_to_list({:function_token, values}, parents) do
+    IO.inspect(values, label: :values)
+
+    function_token =
+      values
+      |> Enum.flat_map(&do_result_to_list(&1, [:function_token | parents]))
+
+    IO.inspect(function_token, label: :function_token)
+
+    ["function" | function_token]
+  end
+
+  # ["percentage", "100", 100, "integer"], ",", " ",
+  # percentage_token: [{:number_token, ["100"]}, "%"]]
+
+  defp do_result_to_list({:percentage_token, values}, parents) do
+    percentage_token =
+      values
+      |> Enum.flat_map(&do_result_to_list(&1, [:percentage_token | parents]))
+
+    IO.inspect(percentage_token, label: :percentage_token)
+
+    [["percentage" | percentage_token]]
   end
 end

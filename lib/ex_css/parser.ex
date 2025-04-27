@@ -380,8 +380,8 @@ defmodule ExCSS.Parser do
     stylesheet
   )
 
-  defparsec(
-    :parse_component_value,
+  defparsecp(
+    :do_parse_component_value,
     choice([
       parsec(:component_value)
       |> times(
@@ -395,6 +395,10 @@ defmodule ExCSS.Parser do
     ])
     |> post_traverse({:check_for_error_component_value, []})
   )
+
+  def parse_component_value(""), do: ["error", "empty"]
+
+  def parse_component_value(component_value), do: do_parse_component_value(component_value)
 
   def parse_css(css) do
     css
@@ -446,7 +450,8 @@ defmodule ExCSS.Parser do
     if is_nil(at_keyword_token) do
       {rest, [{:component_values, component_values}], context}
     else
-      {rest, [{:component_values, component_values}, {:at_keyword_token, at_keyword_token}], context}
+      {rest, [{:component_values, component_values}, {:at_keyword_token, at_keyword_token}],
+       context}
     end
   end
 end
